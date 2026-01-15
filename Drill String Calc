@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sandvik DTH Calculator - Pilgangoora Contract 1551-BES-PILOP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #0f172a; color: white; font-family: system-ui, sans-serif; }
+        select, input[type="number"] { background: #1e293b; border: 1px solid #334155; color: white; }
+        .gauge-ring { transition: stroke-dasharray 0.5s ease; }
+        .sandvik-header { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .card { background: #1e293b; border: 1px solid #334155; }
+        .highlight { background: linear-gradient(135deg, #1e3a5f 0%, #172554 100%); border: 1px solid #f59e0b; }
+        .md6250 { background: linear-gradient(135deg, #7c2d12 0%, #431407 100%); border: 1px solid #fb923c; }
+        optgroup { background: #1e293b; color: #f59e0b; font-weight: bold; }
+        option { background: #1e293b; color: white; }
+        .toggle-btn { transition: all 0.3s ease; }
+        .toggle-btn.active { background: #16a34a; }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Header -->
+    <div class="sandvik-header p-4 mb-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-black">Sandvik DTH Drill String Calculator</h1>
+                <p class="text-black/70 text-sm">Pilgangoora Operations - Contract 1551-BES-PILOP</p>
+            </div>
+            <div class="text-right text-black/80 text-xs">
+                <div>Pilbara Minerals Ltd</div>
+                <div>December 2025 Contract Pricing</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app" class="max-w-7xl mx-auto px-4 pb-8">
+        <!-- Preset Buttons -->
+        <div class="mb-4">
+            <p class="text-xs text-gray-400 mb-2">Quick Load - D65 Configurations:</p>
+            <div class="flex flex-wrap gap-2 mb-2" id="presetsD65"></div>
+            <p class="text-xs text-orange-400 mb-2">Quick Load - MD6250 8" Configurations:</p>
+            <div class="flex flex-wrap gap-2" id="presetsMD6250"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Configuration Panel -->
+            <div class="lg:col-span-2 space-y-4">
+                <!-- Rig Selection -->
+                <div class="card rounded-lg p-4">
+                    <h2 class="text-lg font-semibold mb-3 text-blue-400">Rig Configuration</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Drill Rig</label>
+                            <select id="rigSelect" class="w-full rounded px-3 py-2 text-sm" onchange="updateRigConfig()"></select>
+                            <p id="rigInfo" class="text-xs text-gray-500 mt-1"></p>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Hole Diameter (mm)</label>
+                            <select id="holeDiameter" class="w-full rounded px-3 py-2 text-sm" onchange="updateCalculation()"></select>
+                            <p id="holeInfo" class="text-xs text-gray-500 mt-1"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shock Sub Toggle -->
+                <div class="card rounded-lg p-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-semibold text-green-400">🛡️ Shock Sub Option</h2>
+                            <p class="text-xs text-gray-400 mt-1">Montabert-style shock absorber - protects drill string, increases pen rate 5-10%</p>
+                        </div>
+                        <button id="shockSubToggle" class="toggle-btn px-4 py-2 bg-gray-600 rounded-lg font-semibold text-sm" onclick="toggleShockSub()">
+                            DISABLED
+                        </button>
+                    </div>
+                    <div id="shockSubInfo" class="mt-3 hidden">
+                        <div class="grid grid-cols-4 gap-2 text-xs">
+                            <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Unit Cost:</span><br><span id="shockSubCost" class="text-green-400">$40,000</span></div>
+                            <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Est. Life:</span><br><span id="shockSubLife">75,000m</span></div>
+                            <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">$/m:</span><br><span id="shockSubCPM" class="text-orange-400">$0.53</span></div>
+                            <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Pen Rate Bonus:</span><br><span class="text-green-400">+5-10%</span></div>
+                        </div>
+                        <p class="text-xs text-green-400 mt-2 italic">Benefits: Maintains optimal WOB, extends bit life 10-20%, reduces drill string fatigue, improves hole straightness</p>
+                    </div>
+                </div>
+
+                <!-- Hammer Selection -->
+                <div class="highlight rounded-lg p-4">
+                    <h2 class="text-lg font-semibold mb-3 text-orange-400">🔨 Sandvik Hammer Selection</h2>
+                    <select id="hammerSelect" class="w-full rounded px-3 py-2 text-sm mb-3" onchange="updateCalculation()"></select>
+                    <div id="hammerInfo" class="grid grid-cols-5 gap-2 text-xs"></div>
+                    <div id="hammerNotes" class="mt-2 text-xs text-gray-400 italic"></div>
+                </div>
+
+                <!-- Bit Selection -->
+                <div class="highlight rounded-lg p-4">
+                    <h2 class="text-lg font-semibold mb-3 text-orange-400">💎 Sandvik Bit Selection</h2>
+                    <select id="bitSelect" class="w-full rounded px-3 py-2 text-sm mb-3" onchange="updateCalculation()"></select>
+                    <div id="bitInfo" class="grid grid-cols-5 gap-2 text-xs"></div>
+                    <div id="bitNotes" class="mt-2 text-xs text-gray-400 italic"></div>
+                </div>
+
+                <!-- Drill String Components (MD6250 only) -->
+                <div id="drillStringPanel" class="md6250 rounded-lg p-4 hidden">
+                    <h2 class="text-lg font-semibold mb-3 text-orange-300">🔧 MD6250 8" Drill String Components</h2>
+                    <div id="drillStringComponents" class="grid grid-cols-2 gap-2 text-xs"></div>
+                    <div class="mt-2 text-sm font-semibold text-orange-400">
+                        Total Drill String: <span id="drillStringTotal">$1.61/m</span>
+                    </div>
+                </div>
+
+                <!-- Pipe Selection -->
+                <div class="card rounded-lg p-4">
+                    <h2 class="text-lg font-semibold mb-3 text-purple-400">Drill Pipe</h2>
+                    <select id="pipeSelect" class="w-full rounded px-3 py-2 text-sm mb-2" onchange="updateCalculation()"></select>
+                    <div id="pipeInfo" class="text-xs text-gray-400"></div>
+                </div>
+
+                <!-- Operating Pressure -->
+                <div class="card rounded-lg p-4">
+                    <h2 class="text-lg font-semibold mb-3 text-red-400">Operating Pressure</h2>
+                    <input type="range" id="pressureSlider" min="20" max="35" step="0.5" value="30" class="w-full" oninput="updateCalculation()">
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>20 bar</span>
+                        <span id="pressureValue" class="text-white font-bold">30 bar (435 psi)</span>
+                        <span id="maxPressure">35 bar</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div class="space-y-4">
+                <!-- Efficiency Gauge -->
+                <div class="card rounded-lg p-4 text-center">
+                    <h2 class="text-lg font-semibold mb-3">Configuration Efficiency</h2>
+                    <div class="relative w-36 h-36 mx-auto mb-3">
+                        <svg class="w-full h-full" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#334155" stroke-width="10" />
+                            <circle id="gaugeRing" class="gauge-ring" cx="50" cy="50" r="45" fill="none" stroke="#16a34a" stroke-width="10"
+                                stroke-dasharray="0 283" stroke-linecap="round" transform="rotate(-90 50 50)" />
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span id="efficiencyValue" class="text-4xl font-bold text-green-500">0%</span>
+                        </div>
+                    </div>
+                    <div id="efficiencyStatus" class="text-sm font-semibold text-green-500">CALCULATING...</div>
+                </div>
+
+                <!-- Penetration Rate -->
+                <div class="card rounded-lg p-4">
+                    <h3 class="text-sm font-semibold mb-2 text-gray-400">Estimated Penetration Rate</h3>
+                    <div id="penRateValue" class="text-3xl font-bold text-blue-400">-- m/hr</div>
+                    <div class="text-xs text-gray-500 mt-1">Amphibolite @ 250 MPa UCS</div>
+                    <div id="penRateDetails" class="mt-2 text-xs text-gray-400 space-y-1"></div>
+                    <div id="shockSubBonus" class="hidden mt-2 text-xs text-green-400 bg-green-900/30 p-2 rounded">
+                        🛡️ Shock Sub: +<span id="shockSubBonusPct">7</span>% penetration rate
+                    </div>
+                </div>
+
+                <!-- Bailing Velocity -->
+                <div class="card rounded-lg p-4">
+                    <h3 class="text-sm font-semibold mb-2 text-gray-400">Bailing Velocity</h3>
+                    <div id="bvValue" class="text-2xl font-bold text-green-500">0 fpm</div>
+                    <div id="bvStatus" class="text-xs mt-1"></div>
+                    <div class="mt-2 bg-slate-700 rounded h-3">
+                        <div id="bvBar" class="h-3 rounded transition-all" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>5,000</span>
+                        <span class="text-green-400">7,000-9,000</span>
+                        <span>12,000</span>
+                    </div>
+                </div>
+
+                <!-- Air Analysis -->
+                <div class="card rounded-lg p-4">
+                    <h3 class="text-sm font-semibold mb-2 text-gray-400">Air Balance</h3>
+                    <div id="airAnalysis" class="space-y-2 text-sm"></div>
+                </div>
+
+                <!-- Cost Analysis -->
+                <div class="card rounded-lg p-4">
+                    <h3 class="text-sm font-semibold mb-2 text-orange-400">💰 Contract Cost Analysis</h3>
+                    <div id="costAnalysis" class="space-y-2 text-sm"></div>
+                </div>
+
+                <!-- Save Button -->
+                <button onclick="saveConfig()" class="w-full py-3 bg-orange-600 hover:bg-orange-700 rounded-lg font-semibold transition-colors">
+                    Save Configuration
+                </button>
+
+                <div id="savedConfigsContainer" class="card rounded-lg p-4 hidden">
+                    <h3 class="text-sm font-semibold mb-2 text-gray-400">Saved Configurations</h3>
+                    <div id="savedConfigs" class="space-y-2 max-h-48 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="mt-4 card rounded-lg p-4">
+            <h2 class="text-lg font-semibold mb-3">💡 Recommendations</h2>
+            <div id="recsContent" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm"></div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // COMPLETE SANDVIK PRODUCT DATABASE
+        // Contract 1551-BES-PILOP - December 2025
+        // ============================================
+        
+        const RIGS = {
+            'D65': { 
+                name: 'Epiroc SmartROC D65', 
+                compressorCFM: 995, 
+                maxPressureBar: 30, 
+                holeSizes: [115, 127, 140, 165, 190],
+                hammerClass: '4-6"',
+                shockSub: { cost: 15000, life: 50000 }
+            },
+            'MD6250': { 
+                name: 'Caterpillar MD6250', 
+                compressorCFM: 1350, 
+                maxPressureBar: 34.4, 
+                holeSizes: [203, 216, 229, 254, 270],
+                hammerClass: '8"',
+                shockSub: { cost: 40000, life: 75000 }
+            }
+        };
+
+        // ============================================
+        // SANDVIK HAMMERS
+        // ============================================
+        const HAMMERS = {
+            // D65 - RH460 Series
+            'BG00358362': { 
+                partNumber: 'BG00358362', name: 'RH460 4" QLX4 Hammerset 2-3/8 API 3L', 
+                size: 4, series: 'RH460', shank: 'QLX40', rig: 'D65',
+                airConsumption: 300, efficiency: 0.92, cost: 3251.29, lifeMetres: 12000,
+                notes: 'Wall control & production 4" hammer'
+            },
+            '32-4655-GQA-04C': { 
+                partNumber: '32-4655-GQA-04C', name: 'RH460G 5" Hammer Set 3-1/2 API PIN', 
+                size: 5, series: 'RH460', shank: 'API 3-1/2"', rig: 'D65',
+                airConsumption: 425, efficiency: 0.93, cost: 4866.00, lifeMetres: 10000,
+                notes: 'Mid-size production 5" hammer'
+            },
+            '32-4665-GQA-04C': { 
+                partNumber: '32-4665-GQA-04C', name: 'RH460G 6" Hammer Set 3-1/2 API PIN', 
+                size: 6, series: 'RH460', shank: 'API 3-1/2"', rig: 'D65',
+                airConsumption: 750, efficiency: 0.94, cost: 5565.06, lifeMetres: 9000,
+                notes: 'Primary production hammer for 165mm'
+            },
+            // D65 - RH510 Series
+            '32-5140-RMA-16S': { 
+                partNumber: '32-5140-RMA-16S', name: 'RH510R 4" Hammer Set 2-3/8 API PIN', 
+                size: 4, series: 'RH510', shank: 'API 2-3/8"', rig: 'D65',
+                airConsumption: 320, efficiency: 0.88, cost: 2097.06, lifeMetres: 10000,
+                notes: 'Economy 4" option'
+            },
+            '32-5165-GMA-04C': { 
+                partNumber: '32-5165-GMA-04C', name: 'RH510G 6" Hammer Set 3-1/2 API PIN', 
+                size: 6, series: 'RH510', shank: 'API 3-1/2"', rig: 'D65',
+                airConsumption: 700, efficiency: 0.90, cost: 3640.69, lifeMetres: 8000,
+                notes: 'Standard 6" production'
+            },
+            '32-5165-RMA-04C': { 
+                partNumber: '32-5165-RMA-04C', name: 'RH510R 6" Premium', 
+                size: 6, series: 'RH510', shank: 'API 3-1/2"', rig: 'D65',
+                airConsumption: 720, efficiency: 0.95, cost: 10818.73, lifeMetres: 15000,
+                notes: 'Premium rebuild, extended life'
+            },
+            // D65 - RH560 Series
+            '32-5645-GTA-16S': { 
+                partNumber: '32-5645-GTA-16S', name: 'RH560G 4" Hammer Set 2-3/8 API PIN', 
+                size: 4, series: 'RH560', shank: 'API 2-3/8"', rig: 'D65',
+                airConsumption: 350, efficiency: 0.94, cost: 4294.77, lifeMetres: 12000,
+                notes: 'Premium 4", +15% pen rate'
+            },
+            '32-5665-GQA-04C': { 
+                partNumber: '32-5665-GQA-04C', name: 'RH560G 6" Hammer Set 3-1/2 API PIN', 
+                size: 6, series: 'RH560', shank: 'API 3-1/2"', rig: 'D65',
+                airConsumption: 800, efficiency: 0.95, cost: 6119.48, lifeMetres: 11000,
+                notes: 'Premium 6", enhanced air cycle'
+            },
+            'BG01576792': { 
+                partNumber: 'BG01576792', name: 'RH560G 6" OP Spec', 
+                size: 6, series: 'RH560', shank: 'API 3-1/2"', rig: 'D65',
+                airConsumption: 820, efficiency: 0.96, cost: 11023.10, lifeMetres: 14000,
+                notes: 'Owner-preferred, maximum life'
+            },
+            // D65 - RH570 Series
+            '32-5765-SFA-04C': { 
+                partNumber: '32-5765-SFA-04C', name: 'RH570 6.5" Heavy Duty', 
+                size: 6.5, series: 'RH570', shank: 'API 3-1/2"', rig: 'D65',
+                airConsumption: 900, efficiency: 0.93, cost: 11114.21, lifeMetres: 10000,
+                notes: 'Heavy duty 6.5" for large holes'
+            },
+            // MD6250 - RH460 8" Series
+            '32-4680-SQA-19S': { 
+                partNumber: '32-4680-SQA-19S', name: 'RH460 8" Hammer 4-1/2 API Standard', 
+                size: 8, series: 'RH460-8', shank: 'API 4-1/2"', rig: 'MD6250',
+                airConsumption: 1050, efficiency: 0.92, cost: 11039.00, lifeMetres: 9000,
+                notes: 'MD6250 Standard 8" hammer'
+            },
+            '32-4685-GQA-19C': { 
+                partNumber: '32-4685-GQA-19C', name: 'RH460G 8" Hammer 4-1/2 API Premium', 
+                size: 8, series: 'RH460G-8', shank: 'API 4-1/2"', rig: 'MD6250',
+                airConsumption: 1100, efficiency: 0.95, cost: 12048.00, lifeMetres: 12000,
+                notes: 'MD6250 Premium 8" - 33% longer life'
+            }
+        };
+
+        // ============================================
+        // SANDVIK BITS
+        // ============================================
+        const BITS = {
+            // D65 - 115mm Wall Control
+            '42-4G1A115-S48k': { 
+                partNumber: '42-4G1A115-S48k', name: 'QLX40 115mm CC 2/8 XT48', 
+                diameter: 115, face: 'CC 2/8', carbide: 'XT48', series: 'QLX40', rig: 'D65',
+                efficiency: 0.85, cost: 568.32, lifeMetres: 900,
+                notes: 'Wall control standard'
+            },
+            '42-4G1A115-S65': { 
+                partNumber: '42-4G1A115-S65', name: 'QLX40 115mm CC 2/8 DP65', 
+                diameter: 115, face: 'CC 2/8', carbide: 'DP65', series: 'QLX40', rig: 'D65',
+                efficiency: 0.87, cost: 617.03, lifeMetres: 1000,
+                notes: 'Premium carbide wall control'
+            },
+            // D65 - 127mm Production
+            '42-4G1A127-S48': { 
+                partNumber: '42-4G1A127-S48', name: 'QLX40 127mm CC 2/8 XT48', 
+                diameter: 127, face: 'CC 2/8', carbide: 'XT48', series: 'QLX40', rig: 'D65',
+                efficiency: 0.84, cost: 539.11, lifeMetres: 800,
+                notes: 'Production/batter standard'
+            },
+            '42-4G1A127-S48K': { 
+                partNumber: '42-4G1A127-S48K', name: 'QLX40 127mm CC 2/8 XT48 K', 
+                diameter: 127, face: 'CC 2/8', carbide: 'XT48-K', series: 'QLX40', rig: 'D65',
+                efficiency: 0.88, cost: 611.40, lifeMetres: 1100,
+                notes: 'K-grade enhanced wear'
+            },
+            '42-4H18127-S69K': { 
+                partNumber: '42-4H18127-S69K', name: '5645 127mm CC 2/8 SH69 K', 
+                diameter: 127, face: 'CC 2/8', carbide: 'SH69', series: '5645', rig: 'D65',
+                efficiency: 0.90, cost: 757.07, lifeMetres: 1000,
+                notes: 'PowerCarbide +45% life'
+            },
+            '42-4H18127-S70K': { 
+                partNumber: '42-4H18127-S70K', name: '5645 127mm CC 2/8 SH70 K', 
+                diameter: 127, face: 'CC 2/8', carbide: 'SH70', series: '5645', rig: 'D65',
+                efficiency: 0.91, cost: 758.97, lifeMetres: 1050,
+                notes: 'PowerCarbide SH70 premium'
+            },
+            '42-4H1B127-S65': { 
+                partNumber: '42-4H1B127-S65', name: '560-4 127mm CC 2/8 DP65', 
+                diameter: 127, face: 'CC 2/8', carbide: 'DP65', series: '560', rig: 'D65',
+                efficiency: 0.86, cost: 663.80, lifeMetres: 850,
+                notes: 'RH560 4" standard bit'
+            },
+            // D65 - 140mm
+            '42-4GF9140-S48C': { 
+                partNumber: '42-4GF9140-S48C', name: 'QLX40 140mm FF 2/8 XT48', 
+                diameter: 140, face: 'FF 2/8', carbide: 'XT48', series: 'QLX40', rig: 'D65',
+                efficiency: 0.82, cost: 670.32, lifeMetres: 700,
+                notes: 'Flat face for fractured ground'
+            },
+            '42-5019140-S65': { 
+                partNumber: '42-5019140-S65', name: 'QL50 140mm CC 2/8 DP65', 
+                diameter: 140, face: 'CC 2/8', carbide: 'DP65', series: 'QL50', rig: 'D65',
+                efficiency: 0.84, cost: 739.10, lifeMetres: 750,
+                notes: '5" hammer 140mm option'
+            },
+            // D65 - 165mm Production
+            '42-76DE165-S48': { 
+                partNumber: '42-76DE165-S48', name: 'QL60 165mm CC 3/9 XT48', 
+                diameter: 165, face: 'CC 3/9', carbide: 'XT48', series: 'QL60', rig: 'D65',
+                efficiency: 0.85, cost: 822.69, lifeMetres: 550,
+                notes: 'Production standard 165mm'
+            },
+            '42-76DE165-S65': { 
+                partNumber: '42-76DE165-S65', name: 'QL60 165mm CC 3/9 DP65', 
+                diameter: 165, face: 'CC 3/9', carbide: 'DP65', series: 'QL60', rig: 'D65',
+                efficiency: 0.87, cost: 965.87, lifeMetres: 650,
+                notes: 'Premium carbide 165mm'
+            },
+            '42-76ED165-S69K': { 
+                partNumber: '42-76ED165-S69K', name: 'QL60 165mm BD 2/10 SH69 K', 
+                diameter: 165, face: 'BD 2/10', carbide: 'SH69', series: 'QL60', rig: 'D65',
+                efficiency: 0.92, cost: 1072.95, lifeMetres: 850,
+                notes: 'PowerCarbide + Ballistic Drop'
+            },
+            '42-63BV165-S48K': { 
+                partNumber: '42-63BV165-S48K', name: 'QL 165mm BD 2/12 WR', 
+                diameter: 165, face: 'BD 2/12', carbide: 'XT48-K', series: 'QQL', rig: 'D65',
+                efficiency: 0.90, cost: 1018.54, lifeMetres: 750,
+                notes: 'Wear resistant ballistic drop'
+            },
+            '42-63DC165-S69K': { 
+                partNumber: '42-63DC165-S69K', name: 'QL560-6 165mm CC 3/9 SH69', 
+                diameter: 165, face: 'CC 3/9', carbide: 'SH69', series: 'QQL', rig: 'D65',
+                efficiency: 0.91, cost: 955.37, lifeMetres: 800,
+                notes: 'PowerCarbide for RH560'
+            },
+            '42-63ED165-S69K': { 
+                partNumber: '42-63ED165-S69K', name: 'QL560-6 165mm BD 2/10 SH69', 
+                diameter: 165, face: 'BD 2/10', carbide: 'SH69', series: 'QQL', rig: 'D65',
+                efficiency: 0.93, cost: 1058.25, lifeMetres: 900,
+                notes: 'Premium RH560 bit - BEST VALUE'
+            },
+            '42-6KDC165-S69': { 
+                partNumber: '42-6KDC165-S69', name: '5765 165mm CC 3/9 SH69', 
+                diameter: 165, face: 'CC 3/9', carbide: 'SH69', series: '5765', rig: 'D65',
+                efficiency: 0.92, cost: 1264.88, lifeMetres: 850,
+                notes: 'RH570 6.5" hammer bit'
+            },
+            // D65 - 190mm
+            '42-76DE190-S48': { 
+                partNumber: '42-76DE190-S48', name: 'QL60 190mm CC 3/9 XT48', 
+                diameter: 190, face: 'CC 3/9', carbide: 'XT48', series: 'QL60', rig: 'D65',
+                efficiency: 0.82, cost: 1368.09, lifeMetres: 450,
+                notes: 'Large diameter production'
+            },
+            // MD6250 - 203mm Production
+            '42-83PE203-S48': { 
+                partNumber: '42-83PE203-S48', name: 'QL80 203mm CC 3/9 18S XT48', 
+                diameter: 203, face: 'CC 3/9', carbide: 'XT48', series: 'QL80', rig: 'MD6250',
+                efficiency: 0.85, cost: 2027.75, lifeMetres: 450,
+                notes: 'MD6250 Production 203mm'
+            },
+            // MD6250 - 216mm Production
+            '42-83BE216-S65': { 
+                partNumber: '42-83BE216-S65', name: 'QL80 216mm BD 2/12 DP65', 
+                diameter: 216, face: 'BD 2/12', carbide: 'DP65', series: 'QL80', rig: 'MD6250',
+                efficiency: 0.88, cost: 2415.98, lifeMetres: 600,
+                notes: 'MD6250 Production 216mm - RECOMMENDED'
+            },
+            // MD6250 - 229mm Production
+            '42-83BP229-W65': { 
+                partNumber: '42-83BP229-W65', name: 'QL80 4685 229mm B2/12 DP65', 
+                diameter: 229, face: 'BD 2/12', carbide: 'DP65', series: 'QL80', rig: 'MD6250',
+                efficiency: 0.86, cost: 2891.55, lifeMetres: 500,
+                notes: 'MD6250 Production 229mm ballistic'
+            },
+            '42-838E229-S48': { 
+                partNumber: '42-838E229-S48', name: 'PROD BIT 229mm C3/12 XT48', 
+                diameter: 229, face: 'CC 3/12', carbide: 'XT48', series: '4685', rig: 'MD6250',
+                efficiency: 0.84, cost: 2305.86, lifeMetres: 500,
+                notes: 'MD6250 Production 229mm standard'
+            },
+            // MD6250 - 254mm Collaring
+            '42-838E254-S48': { 
+                partNumber: '42-838E254-S48', name: 'COLLARING 4685 254mm C3/12 XT48', 
+                diameter: 254, face: 'CC 3/12', carbide: 'XT48', series: '4685', rig: 'MD6250',
+                efficiency: 0.80, cost: 3273.97, lifeMetres: 300,
+                notes: 'MD6250 Collaring 254mm'
+            },
+            // MD6250 - 270mm Collaring
+            '42-838E270-C48': { 
+                partNumber: '42-838E270-C48', name: 'COLLARING QL80 270mm C3/12 XT48', 
+                diameter: 270, face: 'CC 3/12', carbide: 'XT48', series: 'QL80', rig: 'MD6250',
+                efficiency: 0.78, cost: 3893.56, lifeMetres: 350,
+                notes: 'MD6250 Collaring 270mm'
+            }
+        };
+
+        // MD6250 Drill String Components
+        const MD6250_DRILL_STRING = {
+            'shock_sub': { name: 'Shock Sub Assembly', partNumber: 'N/A', cost: 40000.00, life: 75000, cpm: 0.53 },
+            'deck_inner': { name: 'Deck Bush (Inner) MD6250', partNumber: 'DB07000900SL030', cost: 1448.75, life: 10000, cpm: 0.14 },
+            'deck_outer': { name: 'Deck Bush (Outer)', partNumber: 'DB01001100SL031', cost: 1828.75, life: 20000, cpm: 0.09 },
+            'sub_beco': { name: 'Sub - Suit 4-1/2" BECO', partNumber: 'AD07006151L5069', cost: 4712.95, life: 12500, cpm: 0.38 },
+            'drill_pipe': { name: 'Drill Pipe/S 20ft', partNumber: 'DP07002031AL054', cost: 7740.00, life: 25000, cpm: 0.31 },
+            'saver_sub': { name: 'Saver Sub', partNumber: 'AD07001111L5068', cost: 1860.10, life: 12500, cpm: 0.15 }
+        };
+        const MD6250_STRING_CPM = 1.61; // Total without shock sub
+
+        // D65 Pipes
+        const PIPES_D65 = {
+            '89mm': { name: '89mm (3.5") DP089', diameterMM: 89, diameterInch: 3.5, cost: 1281.52, lifeMetres: 30000 },
+            '102mm': { name: '102mm (4") DP102', diameterMM: 102, diameterInch: 4.0, cost: 1236.93, lifeMetres: 25000 },
+            '114mm': { name: '114mm (4.5")', diameterMM: 114, diameterInch: 4.5, cost: 1400.00, lifeMetres: 25000 },
+            '127mm': { name: '127mm (5")', diameterMM: 127, diameterInch: 5.0, cost: 1600.00, lifeMetres: 25000 }
+        };
+
+        // MD6250 Pipes
+        const PIPES_MD6250 = {
+            '140mm': { name: '140mm (5.5")', diameterMM: 140, diameterInch: 5.5, cost: 7740.00, lifeMetres: 25000 },
+            '168mm': { name: '168mm (6.6")', diameterMM: 168, diameterInch: 6.6, cost: 8500.00, lifeMetres: 25000 },
+            '178mm': { name: '178mm (7")', diameterMM: 178, diameterInch: 7.0, cost: 9200.00, lifeMetres: 25000 }
+        };
+
+        // Presets
+        const PRESETS_D65 = {
+            'WC_115': { rig: 'D65', holeDiameter: 115, hammer: 'BG00358362', bit: '42-4G1A115-S48k', pipe: '89mm', pressure: 30, name: 'Wall Control 115mm' },
+            'PROD_127_STD': { rig: 'D65', holeDiameter: 127, hammer: 'BG00358362', bit: '42-4G1A127-S48', pipe: '89mm', pressure: 30, name: 'Production 127mm Std' },
+            'PROD_127_PWR': { rig: 'D65', holeDiameter: 127, hammer: '32-5645-GTA-16S', bit: '42-4H18127-S69K', pipe: '89mm', pressure: 30, name: 'Production 127mm Premium' },
+            'PROD_165_STD': { rig: 'D65', holeDiameter: 165, hammer: '32-4665-GQA-04C', bit: '42-76DE165-S48', pipe: '102mm', pressure: 28, name: 'Production 165mm Standard' },
+            'PROD_165_PWR': { rig: 'D65', holeDiameter: 165, hammer: '32-5665-GQA-04C', bit: '42-63ED165-S69K', pipe: '102mm', pressure: 30, name: 'Production 165mm Premium' },
+            'PROD_165_HVY': { rig: 'D65', holeDiameter: 165, hammer: '32-5765-SFA-04C', bit: '42-6KDC165-S69', pipe: '114mm', pressure: 30, name: 'Production 165mm Heavy' }
+        };
+
+        const PRESETS_MD6250 = {
+            'MD_203': { rig: 'MD6250', holeDiameter: 203, hammer: '32-4685-GQA-19C', bit: '42-83PE203-S48', pipe: '140mm', pressure: 32, name: 'MD6250 203mm Production' },
+            'MD_216': { rig: 'MD6250', holeDiameter: 216, hammer: '32-4685-GQA-19C', bit: '42-83BE216-S65', pipe: '140mm', pressure: 32, name: 'MD6250 216mm Production' },
+            'MD_229': { rig: 'MD6250', holeDiameter: 229, hammer: '32-4685-GQA-19C', bit: '42-838E229-S48', pipe: '168mm', pressure: 32, name: 'MD6250 229mm Production' },
+            'MD_254_COL': { rig: 'MD6250', holeDiameter: 254, hammer: '32-4685-GQA-19C', bit: '42-838E254-S48', pipe: '168mm', pressure: 32, name: 'MD6250 254mm Collaring' },
+            'MD_270_COL': { rig: 'MD6250', holeDiameter: 270, hammer: '32-4685-GQA-19C', bit: '42-838E270-C48', pipe: '178mm', pressure: 32, name: 'MD6250 270mm Collaring' }
+        };
+
+        let shockSubEnabled = false;
+        let savedConfigs = [];
+        let currentRig = 'D65';
+
+        // ============================================
+        // INITIALIZATION
+        // ============================================
+        
+        function init() {
+            // D65 Presets
+            const presetsD65Div = document.getElementById('presetsD65');
+            Object.entries(PRESETS_D65).forEach(([key, preset]) => {
+                const btn = document.createElement('button');
+                btn.className = 'px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-xs font-medium transition-colors';
+                btn.textContent = preset.name;
+                btn.onclick = () => loadPreset(key, PRESETS_D65);
+                presetsD65Div.appendChild(btn);
+            });
+
+            // MD6250 Presets
+            const presetsMD6250Div = document.getElementById('presetsMD6250');
+            Object.entries(PRESETS_MD6250).forEach(([key, preset]) => {
+                const btn = document.createElement('button');
+                btn.className = 'px-3 py-1 bg-orange-600 hover:bg-orange-700 rounded text-xs font-medium transition-colors';
+                btn.textContent = preset.name;
+                btn.onclick = () => loadPreset(key, PRESETS_MD6250);
+                presetsMD6250Div.appendChild(btn);
+            });
+
+            populateSelect('rigSelect', RIGS, r => `${r.name} (${r.compressorCFM} CFM)`);
+            document.getElementById('rigSelect').value = 'D65';
+            updateRigConfig();
+        }
+
+        function populateSelect(id, data, labelFn) {
+            const select = document.getElementById(id);
+            select.innerHTML = '';
+            Object.entries(data).forEach(([key, value]) => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = typeof labelFn === 'function' ? labelFn(value) : value[labelFn];
+                select.appendChild(opt);
+            });
+        }
+
+        function updateRigConfig() {
+            currentRig = document.getElementById('rigSelect').value;
+            const rig = RIGS[currentRig];
+            
+            // Update shock sub info
+            const shockSub = rig.shockSub;
+            document.getElementById('shockSubCost').textContent = `$${shockSub.cost.toLocaleString()}`;
+            document.getElementById('shockSubLife').textContent = `${shockSub.life.toLocaleString()}m`;
+            document.getElementById('shockSubCPM').textContent = `$${(shockSub.cost / shockSub.life).toFixed(2)}`;
+            
+            // Update hole diameter options
+            const holeDiaSelect = document.getElementById('holeDiameter');
+            holeDiaSelect.innerHTML = '';
+            rig.holeSizes.forEach(size => {
+                const opt = document.createElement('option');
+                opt.value = size;
+                opt.textContent = `${size}mm`;
+                holeDiaSelect.appendChild(opt);
+            });
+            
+            // Show/hide MD6250 drill string panel
+            const drillStringPanel = document.getElementById('drillStringPanel');
+            if (currentRig === 'MD6250') {
+                drillStringPanel.classList.remove('hidden');
+                populateMD6250DrillString();
+            } else {
+                drillStringPanel.classList.add('hidden');
+            }
+            
+            // Update hammer and bit selects
+            populateHammerSelect();
+            populateBitSelect();
+            populatePipeSelect();
+            
+            updateCalculation();
+        }
+
+        function populateMD6250DrillString() {
+            const container = document.getElementById('drillStringComponents');
+            container.innerHTML = '';
+            
+            Object.entries(MD6250_DRILL_STRING).forEach(([key, comp]) => {
+                if (key === 'shock_sub') return; // Handle separately
+                const div = document.createElement('div');
+                div.className = 'bg-slate-800 p-2 rounded';
+                div.innerHTML = `
+                    <div class="text-gray-300 text-xs">${comp.name}</div>
+                    <div class="text-gray-500 text-xs">${comp.partNumber}</div>
+                    <div class="text-orange-400">$${comp.cpm.toFixed(2)}/m</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function populateHammerSelect() {
+            const select = document.getElementById('hammerSelect');
+            select.innerHTML = '';
+            
+            const filteredHammers = Object.entries(HAMMERS).filter(([k, h]) => h.rig === currentRig);
+            
+            const series = {};
+            filteredHammers.forEach(([key, h]) => {
+                if (!series[h.series]) series[h.series] = [];
+                series[h.series].push([key, h]);
+            });
+            
+            Object.entries(series).forEach(([seriesName, hammers]) => {
+                if (hammers.length === 0) return;
+                const group = document.createElement('optgroup');
+                group.label = `${seriesName} Series`;
+                hammers.forEach(([key, h]) => {
+                    const opt = document.createElement('option');
+                    opt.value = key;
+                    opt.textContent = `${h.size}" - ${h.name.substring(0, 30)}... - $${h.cost.toLocaleString()}`;
+                    group.appendChild(opt);
+                });
+                select.appendChild(group);
+            });
+        }
+
+        function populateBitSelect() {
+            const select = document.getElementById('bitSelect');
+            select.innerHTML = '';
+            
+            const holeDia = parseInt(document.getElementById('holeDiameter').value);
+            const filteredBits = Object.entries(BITS).filter(([k, b]) => b.rig === currentRig && b.diameter === holeDia);
+            
+            if (filteredBits.length === 0) {
+                const opt = document.createElement('option');
+                opt.textContent = `No bits available for ${holeDia}mm`;
+                select.appendChild(opt);
+                return;
+            }
+            
+            filteredBits.forEach(([key, b]) => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                const carbideLabel = b.carbide.includes('SH6') || b.carbide.includes('SH7') ? '⭐' : '';
+                opt.textContent = `${b.series} ${b.face} ${b.carbide} ${carbideLabel} - $${b.cost.toFixed(2)}`;
+                select.appendChild(opt);
+            });
+        }
+
+        function populatePipeSelect() {
+            const pipes = currentRig === 'MD6250' ? PIPES_MD6250 : PIPES_D65;
+            populateSelect('pipeSelect', pipes, p => p.name);
+        }
+
+        function loadPreset(key, presets) {
+            const preset = presets[key];
+            document.getElementById('rigSelect').value = preset.rig;
+            updateRigConfig();
+            
+            setTimeout(() => {
+                document.getElementById('holeDiameter').value = preset.holeDiameter;
+                populateBitSelect();
+                document.getElementById('hammerSelect').value = preset.hammer;
+                document.getElementById('bitSelect').value = preset.bit;
+                document.getElementById('pipeSelect').value = preset.pipe;
+                document.getElementById('pressureSlider').value = preset.pressure;
+                updateCalculation();
+            }, 100);
+        }
+
+        function toggleShockSub() {
+            shockSubEnabled = !shockSubEnabled;
+            const btn = document.getElementById('shockSubToggle');
+            const info = document.getElementById('shockSubInfo');
+            const bonus = document.getElementById('shockSubBonus');
+            
+            if (shockSubEnabled) {
+                btn.classList.add('active');
+                btn.textContent = 'ENABLED';
+                info.classList.remove('hidden');
+                bonus.classList.remove('hidden');
+            } else {
+                btn.classList.remove('active');
+                btn.textContent = 'DISABLED';
+                info.classList.add('hidden');
+                bonus.classList.add('hidden');
+            }
+            updateCalculation();
+        }
+
+        // ============================================
+        // CALCULATIONS
+        // ============================================
+
+        function mmToInch(mm) { return mm / 25.4; }
+
+        function calculateBailingVelocity(cfm, holeDiameterInch, pipeDiameterInch) {
+            const annularArea = Math.pow(holeDiameterInch, 2) - Math.pow(pipeDiameterInch, 2);
+            if (annularArea <= 0) return 0;
+            return (cfm * 183.3) / annularArea;
+        }
+
+        function getBVRating(bv) {
+            if (bv < 5000) return { status: 'CRITICAL', color: '#dc2626', message: 'Too low - cuttings will settle', score: 0.4 };
+            if (bv < 7000) return { status: 'MARGINAL', color: '#f59e0b', message: 'Below optimal', score: 0.7 };
+            if (bv <= 9000) return { status: 'OPTIMAL', color: '#16a34a', message: 'Optimal range', score: 1.0 };
+            if (bv <= 10000) return { status: 'HIGH', color: '#f59e0b', message: 'Monitor pipe wear', score: 0.85 };
+            return { status: 'EXCESSIVE', color: '#dc2626', message: 'Sandblasting risk', score: 0.5 };
+        }
+
+        function calculatePenetrationRate(holeDiameter, pressure, efficiency, hammerSeries) {
+            const basePR = { 115: 45, 127: 40, 140: 35, 165: 30, 190: 22, 203: 28, 216: 24, 229: 21, 254: 16, 270: 13 };
+            let closestDia = Object.keys(basePR).reduce((prev, curr) => 
+                Math.abs(curr - holeDiameter) < Math.abs(prev - holeDiameter) ? curr : prev
+            );
+            let baseRate = basePR[closestDia] || 20;
+            
+            const diameterFactor = Math.pow(closestDia / holeDiameter, 0.8);
+            const pressureFactor = Math.pow(pressure / 30, 0.7);
+            
+            let seriesBonus = 1.0;
+            if (hammerSeries.includes('RH560') || hammerSeries.includes('RH460G-8')) seriesBonus = 1.15;
+            else if (hammerSeries.includes('RH570')) seriesBonus = 1.10;
+            else if (hammerSeries.includes('RH460')) seriesBonus = 1.05;
+            
+            let penRate = baseRate * diameterFactor * pressureFactor * efficiency * seriesBonus;
+            
+            // Shock sub bonus: 5-10% (use 7% average)
+            if (shockSubEnabled) {
+                penRate *= 1.07;
+            }
+            
+            return penRate;
+        }
+
+        function updateCalculation() {
+            const rig = RIGS[document.getElementById('rigSelect').value];
+            const hammerKey = document.getElementById('hammerSelect').value;
+            const hammer = HAMMERS[hammerKey];
+            const bitKey = document.getElementById('bitSelect').value;
+            const bit = BITS[bitKey];
+            
+            if (!hammer || !bit) return;
+            
+            const pipes = currentRig === 'MD6250' ? PIPES_MD6250 : PIPES_D65;
+            const pipeKey = document.getElementById('pipeSelect').value;
+            const pipe = pipes[pipeKey];
+            const holeDiameter = parseFloat(document.getElementById('holeDiameter').value);
+            const pressure = parseFloat(document.getElementById('pressureSlider').value);
+
+            // Update displays
+            document.getElementById('rigInfo').textContent = `${rig.compressorCFM} CFM @ ${rig.maxPressureBar} bar max | ${rig.hammerClass} hammers`;
+            document.getElementById('holeInfo').textContent = `${mmToInch(holeDiameter).toFixed(2)}" (${holeDiameter}mm)`;
+            document.getElementById('maxPressure').textContent = `${rig.maxPressureBar} bar`;
+            document.getElementById('pressureValue').textContent = `${pressure} bar (${Math.round(pressure * 14.5)} psi)`;
+            document.getElementById('pressureSlider').max = rig.maxPressureBar;
+
+            // Hammer info
+            const isPremiumHammer = hammer.series.includes('RH560') || hammer.series.includes('RH460G');
+            document.getElementById('hammerInfo').innerHTML = `
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Series:</span><br><span class="${isPremiumHammer ? 'text-green-400' : 'text-orange-400'}">${hammer.series}</span></div>
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Size:</span><br><span>${hammer.size}"</span></div>
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Air:</span><br><span>${hammer.airConsumption} CFM</span></div>
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Life:</span><br><span>${hammer.lifeMetres.toLocaleString()}m</span></div>
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">$/m:</span><br><span class="text-orange-400">$${(hammer.cost / hammer.lifeMetres).toFixed(2)}</span></div>
+            `;
+            document.getElementById('hammerNotes').textContent = hammer.notes;
+
+            // Bit info
+            const isPowerCarbide = bit.carbide.includes('SH6') || bit.carbide.includes('SH7');
+            document.getElementById('bitInfo').innerHTML = `
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Series:</span><br><span class="text-orange-400">${bit.series}</span></div>
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Face:</span><br><span>${bit.face}</span></div>
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Carbide:</span><br><span class="${isPowerCarbide ? 'text-green-400' : 'text-gray-300'}">${bit.carbide}</span></div>
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">Life:</span><br><span>${bit.lifeMetres.toLocaleString()}m</span></div>
+                <div class="bg-slate-800 p-2 rounded"><span class="text-gray-400">$/m:</span><br><span class="text-orange-400">$${(bit.cost / bit.lifeMetres).toFixed(2)}</span></div>
+            `;
+            document.getElementById('bitNotes').textContent = bit.notes;
+
+            // Pipe info
+            const holeDiameterInch = mmToInch(holeDiameter);
+            const annularArea = (Math.pow(holeDiameterInch, 2) - Math.pow(pipe.diameterInch, 2)).toFixed(2);
+            document.getElementById('pipeInfo').innerHTML = `Annular Area: ${annularArea} in² | Pipe OD: ${pipe.diameterMM}mm`;
+
+            // Calculations
+            const surplusAir = rig.compressorCFM - hammer.airConsumption;
+            const bv = calculateBailingVelocity(rig.compressorCFM, holeDiameterInch, pipe.diameterInch);
+            const bvRating = getBVRating(bv);
+
+            const pressureEfficiency = Math.min(pressure / rig.maxPressureBar, 1.0);
+            const airEfficiency = surplusAir < 0 ? 0.5 : (surplusAir > 200 ? 1.0 : 0.7 + (surplusAir / 667));
+
+            const hammerSizeInch = hammer.size;
+            const sizeRatio = hammerSizeInch / holeDiameterInch;
+            const sizeEfficiency = (sizeRatio >= 0.55 && sizeRatio <= 0.85) ? 1.0 : (sizeRatio < 0.55 ? 0.7 : 0.8);
+
+            // Shock sub adds to efficiency
+            const shockSubEffBonus = shockSubEnabled ? 0.03 : 0;
+
+            const overallEfficiency = Math.min((
+                hammer.efficiency * 0.25 +
+                bit.efficiency * 0.25 +
+                bvRating.score * 0.25 +
+                pressureEfficiency * 0.10 +
+                airEfficiency * 0.10 +
+                sizeEfficiency * 0.05 +
+                shockSubEffBonus
+            ), 1.0);
+
+            const efficiencyPercent = (overallEfficiency * 100).toFixed(1);
+            const effColor = efficiencyPercent >= 85 ? '#16a34a' : efficiencyPercent >= 70 ? '#f59e0b' : '#dc2626';
+
+            // Update efficiency gauge
+            document.getElementById('gaugeRing').style.strokeDasharray = `${efficiencyPercent * 2.83} 283`;
+            document.getElementById('gaugeRing').style.stroke = effColor;
+            document.getElementById('efficiencyValue').textContent = `${efficiencyPercent}%`;
+            document.getElementById('efficiencyValue').style.color = effColor;
+            document.getElementById('efficiencyStatus').textContent = efficiencyPercent >= 85 ? 'OPTIMAL' : efficiencyPercent >= 70 ? 'ACCEPTABLE' : 'NEEDS IMPROVEMENT';
+            document.getElementById('efficiencyStatus').style.color = effColor;
+
+            // Penetration rate
+            const penRate = calculatePenetrationRate(holeDiameter, pressure, overallEfficiency, hammer.series);
+            const dailyOutput = penRate * 10;
+            const monthlyOutput = dailyOutput * 26;
+            const holesPerDay = Math.floor(dailyOutput / 10);
+            
+            document.getElementById('penRateValue').textContent = `${penRate.toFixed(1)} m/hr`;
+            document.getElementById('penRateDetails').innerHTML = `
+                <div>Daily (10hr): <span class="text-white font-semibold">${dailyOutput.toFixed(0)}m</span> (~${holesPerDay} holes)</div>
+                <div>Monthly (26 shifts): <span class="text-white font-semibold">${monthlyOutput.toLocaleString()}m</span></div>
+            `;
+
+            // Bailing velocity
+            document.getElementById('bvValue').textContent = `${Math.round(bv).toLocaleString()} fpm`;
+            document.getElementById('bvValue').style.color = bvRating.color;
+            document.getElementById('bvStatus').innerHTML = `<span style="color: ${bvRating.color}">${bvRating.status}: ${bvRating.message}</span>`;
+            document.getElementById('bvBar').style.width = `${Math.min((bv / 12000) * 100, 100)}%`;
+            document.getElementById('bvBar').style.backgroundColor = bvRating.color;
+
+            // Air analysis
+            const airStatus = surplusAir > 150 ? 'text-green-400' : (surplusAir > 0 ? 'text-yellow-400' : 'text-red-400');
+            document.getElementById('airAnalysis').innerHTML = `
+                <div class="flex justify-between"><span class="text-gray-400">Rig Compressor:</span><span>${rig.compressorCFM} CFM</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Hammer Consumption:</span><span>${hammer.airConsumption} CFM</span></div>
+                <div class="flex justify-between font-semibold"><span class="text-gray-400">Surplus Air:</span><span class="${airStatus}">${surplusAir} CFM</span></div>
+            `;
+
+            // Cost analysis
+            const bitCPM = bit.cost / bit.lifeMetres;
+            const hammerCPM = hammer.cost / hammer.lifeMetres;
+            const pipeCPM = pipe.cost / pipe.lifeMetres;
+            
+            let drillStringCPM = 0;
+            if (currentRig === 'MD6250') {
+                drillStringCPM = MD6250_STRING_CPM;
+            }
+            
+            let shockSubCPM = 0;
+            if (shockSubEnabled) {
+                shockSubCPM = rig.shockSub.cost / rig.shockSub.life;
+            }
+            
+            const totalCPM = bitCPM + hammerCPM + pipeCPM + drillStringCPM + shockSubCPM;
+            const costPer10mHole = totalCPM * 10;
+            const monthlyCost = totalCPM * monthlyOutput;
+
+            let costHTML = `
+                <div class="flex justify-between"><span class="text-gray-400">Bit (${bit.partNumber}):</span><span>$${bitCPM.toFixed(2)}/m</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Hammer:</span><span>$${hammerCPM.toFixed(2)}/m</span></div>
+            `;
+            
+            if (currentRig === 'MD6250') {
+                costHTML += `<div class="flex justify-between"><span class="text-gray-400">Drill String (8"):</span><span>$${drillStringCPM.toFixed(2)}/m</span></div>`;
+            } else {
+                costHTML += `<div class="flex justify-between"><span class="text-gray-400">Drill Pipe:</span><span>$${pipeCPM.toFixed(2)}/m</span></div>`;
+            }
+            
+            if (shockSubEnabled) {
+                costHTML += `<div class="flex justify-between text-green-400"><span>Shock Sub:</span><span>$${shockSubCPM.toFixed(2)}/m</span></div>`;
+            }
+            
+            costHTML += `
+                <div class="flex justify-between font-bold border-t border-slate-600 pt-2 mt-2">
+                    <span>TOTAL:</span>
+                    <span class="text-orange-400 text-lg">$${totalCPM.toFixed(2)}/m</span>
+                </div>
+                <div class="text-xs text-gray-500 mt-2 space-y-1">
+                    <div>Per 10m hole: <span class="text-white">$${costPer10mHole.toFixed(2)}</span></div>
+                    <div>Monthly estimate: <span class="text-white">$${monthlyCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span></div>
+                </div>
+            `;
+            
+            document.getElementById('costAnalysis').innerHTML = costHTML;
+
+            // Recommendations
+            let recs = [];
+            
+            if (bvRating.score < 0.7) {
+                recs.push(`<div class="bg-red-900/30 border border-red-600 p-3 rounded"><div class="font-semibold text-red-400">⚠️ Bailing Velocity</div><p class="text-gray-300 mt-1">${bv < 7000 ? 'Consider larger pipe' : 'Reduce pipe size'}</p></div>`);
+            }
+            
+            if (shockSubEnabled) {
+                recs.push(`<div class="bg-green-900/30 border border-green-600 p-3 rounded"><div class="font-semibold text-green-400">🛡️ Shock Sub Active</div><p class="text-gray-300 mt-1">+7% pen rate, +15% bit life, reduced drill string fatigue. ROI in hard rock conditions.</p></div>`);
+            } else if (holeDiameter >= 165) {
+                recs.push(`<div class="bg-yellow-900/30 border border-yellow-600 p-3 rounded"><div class="font-semibold text-yellow-400">💡 Consider Shock Sub</div><p class="text-gray-300 mt-1">For ${holeDiameter}mm holes in amphibolite, shock sub provides significant ROI through extended tool life.</p></div>`);
+            }
+            
+            if (isPowerCarbide) {
+                recs.push(`<div class="bg-green-900/30 border border-green-600 p-3 rounded"><div class="font-semibold text-green-400">💎 PowerCarbide</div><p class="text-gray-300 mt-1">${bit.carbide} offers up to 45% longer life in abrasive pegmatite.</p></div>`);
+            }
+            
+            if (isPremiumHammer) {
+                recs.push(`<div class="bg-blue-900/30 border border-blue-600 p-3 rounded"><div class="font-semibold text-blue-400">⚡ Premium Hammer</div><p class="text-gray-300 mt-1">${hammer.series} enhanced air cycle delivers +15% penetration rate.</p></div>`);
+            }
+            
+            if (currentRig === 'MD6250' && holeDiameter === 216) {
+                recs.push(`<div class="bg-orange-900/30 border border-orange-600 p-3 rounded"><div class="font-semibold text-orange-400">✓ Optimal MD6250 Config</div><p class="text-gray-300 mt-1">216mm offers best balance of production rate ($5.03/m total) vs hole size.</p></div>`);
+            }
+            
+            document.getElementById('recsContent').innerHTML = recs.length > 0 ? recs.join('') : '<div class="text-gray-400">Select components to see recommendations</div>';
+        }
+
+        function saveConfig() {
+            const hammer = HAMMERS[document.getElementById('hammerSelect').value];
+            const bit = BITS[document.getElementById('bitSelect').value];
+            
+            const config = {
+                rig: currentRig,
+                holeDiameter: document.getElementById('holeDiameter').value,
+                efficiency: document.getElementById('efficiencyValue').textContent,
+                shockSub: shockSubEnabled,
+                timestamp: new Date().toLocaleTimeString()
+            };
+            savedConfigs.push(config);
+            
+            document.getElementById('savedConfigsContainer').classList.remove('hidden');
+            const div = document.getElementById('savedConfigs');
+            const effNum = parseFloat(config.efficiency);
+            const effColor = effNum >= 85 ? '#16a34a' : effNum >= 70 ? '#f59e0b' : '#dc2626';
+            div.innerHTML += `
+                <div class="bg-slate-800 p-2 rounded text-xs flex justify-between items-center">
+                    <div>
+                        <div class="font-semibold">${config.rig} - ${config.holeDiameter}mm</div>
+                        <div class="text-gray-400">${config.shockSub ? '🛡️ Shock Sub' : 'No Shock Sub'}</div>
+                    </div>
+                    <div class="text-xl font-bold" style="color: ${effColor}">${config.efficiency}</div>
+                </div>
+            `;
+        }
+
+        // Listen for hole diameter changes
+        document.getElementById('holeDiameter').addEventListener('change', function() {
+            populateBitSelect();
+            updateCalculation();
+        });
+
+        init();
+    </script>
+</body>
+</html>
